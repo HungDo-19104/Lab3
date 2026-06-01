@@ -1,8 +1,11 @@
-# Travel Planning Agent Web App
+# Travel Chatbot vs Travel Agent Demo
 
-Project này là một web app FastAPI cho Travel Planning Agent chạy trên localhost.
+Project này là web app FastAPI dùng để demo sự khác biệt giữa:
 
-## Cách chạy
+- Travel Chatbot
+- Travel ReAct Agent
+
+## Chạy project
 
 ```bash
 pip install -r requirements.txt
@@ -17,107 +20,65 @@ Running at:
 http://localhost:8000
 ```
 
-## Input hỗ trợ
+Mở trình duyệt tại [http://localhost:8000](http://localhost:8000).
+
+## Form input
+
+Người dùng nhập:
 
 - `destination`
 - `date`
 - `preference`
 - `days`
 - `budget`
-- `travel_style`: `budget`, `standard`, `premium`
+- `travel_style`
 
-## Agent flow
+Sau đó bấm:
 
-Agent luôn gọi đúng 4 tools theo thứ tự:
+`Compare Chatbot vs Agent`
 
-1. `get_weather(destination, date)`
-2. `recommend_activities(destination, weather, preference, travel_style)`
-3. `estimate_trip_cost(destination, days, activities, travel_style)`
-4. `check_budget(total_cost, budget)`
+## Kết quả hiển thị trên localhost
 
-## Travel Knowledge Base
+Trang web sẽ hiện:
 
-Knowledge base hiện có các điểm đến:
+1. **Comparison Table**
+2. **Chatbot Output**
+3. **Agent Output**
+4. **Agent ReAct Trace**
 
-### Miền Bắc
+## Chatbot vs Agent
 
-- Hà Nội
-- Sapa
-- Hà Giang
-- Ninh Bình
-- Quảng Ninh (Hạ Long)
-- Mộc Châu
+### Chatbot
 
-### Miền Trung
+- Không gọi tool
+- Trả lời trực tiếp từ prompt
+- Không có trace Thought / Action / Observation
 
-- Huế
-- Đà Nẵng
-- Hội An
-- Quy Nhơn
-- Nha Trang
-- Phú Yên
+### Agent
 
-### Miền Nam
+Agent bắt buộc gọi đúng 4 tool:
 
-- TP Hồ Chí Minh
-- Vũng Tàu
-- Phú Quốc
-- Cần Thơ
-- Đà Lạt
-
-Mỗi destination có đủ:
-
-- `nature`
-- `food`
-- `culture`
-- `indoor_rainy`
-
-Nếu destination chưa tồn tại, hệ thống dùng fallback riêng và không lấy dữ liệu từ thành phố khác.
-
-## Cost Engine V2
-
-Tổng chi phí được tính theo:
-
-```text
-total_cost = hotel_cost + food_cost + transport_cost + activity_cost
-```
-
-### Hotel cost
-
-Theo destination và `travel_style`.
-
-### Food cost
-
-- `budget`: `150000/ngày`
-- `standard`: `300000/ngày`
-- `premium`: `700000/ngày`
-
-### Transport cost
-
-Theo từng destination trong knowledge base.
-
-### Activity cost
-
-Mỗi activity có `cost` riêng ngay trong database.
+1. `get_weather()`
+2. `recommend_activities()`
+3. `estimate_trip_cost()`
+4. `check_budget()`
 
 ## API
 
-### `GET /`
+### `POST /compare`
 
-Trang giao diện web.
-
-### `POST /plan`
+Đây là endpoint chính cho demo.
 
 Request body:
 
 ```json
 {
-  "destination": "Phú Quốc",
-  "date": "2026-08-20",
-  "preference": "biển và ăn uống",
+  "destination": "Đà Lạt",
+  "date": "2026-06-15",
+  "preference": "thiên nhiên",
   "days": 4,
-  "budget": 12000000,
-  "travel_style": "standard"
+  "budget": 2000000,
+  "travel_style": "budget"
 }
 ```
 
@@ -125,31 +86,60 @@ Response body:
 
 ```json
 {
-  "thoughts": ["..."],
-  "actions": ["..."],
-  "observations": [{}, [], {}, {}],
-  "final_answer": "...",
-  "total_cost": 0,
-  "within_budget": true,
-  "cost_breakdown": {
-    "hotel": 0,
-    "food": 0,
-    "transport": 0,
-    "activities": 0
+  "chatbot": {
+    "final_answer": "...",
+    "uses_tools": false,
+    "method": "Direct LLM response"
   },
-  "travel_advice": "..."
+  "agent": {
+    "trace": [
+      {
+        "thought": "...",
+        "action": "get_weather",
+        "observation": {}
+      }
+    ],
+    "final_answer": "...",
+    "uses_tools": true,
+    "total_cost": 0,
+    "within_budget": true
+  },
+  "comparison": [
+    {
+      "criteria": "Có dùng tool không",
+      "chatbot": "Không",
+      "agent": "Có"
+    }
+  ]
 }
 ```
 
-## Test coverage
+### `POST /plan`
 
-Đã có test cho:
+Endpoint phụ, vẫn giữ để lấy riêng output của Agent.
 
-- Hà Nội
-- Sapa
-- Đà Lạt
-- Đà Nẵng
-- Phú Quốc
-- Quảng Ninh (Hạ Long)
+## Demo case gợi ý
 
-Ngoài ra còn có test fallback destination riêng.
+```json
+{
+  "destination": "Đà Lạt",
+  "date": "2026-06-15",
+  "preference": "thiên nhiên",
+  "days": 4,
+  "budget": 2000000,
+  "travel_style": "budget"
+}
+```
+
+Kỳ vọng:
+
+- Chatbot trả lời chung chung hơn
+- Agent có weather, activities, cost breakdown, budget check và ReAct trace
+
+## Final check
+
+1. Chạy `python main.py`
+2. Mở `http://localhost:8000`
+3. Submit form
+4. Xem bảng so sánh Chatbot vs Agent
+5. Xem Agent ReAct Trace hiển thị đủ 4 bước

@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from src.agent.travel_agent import TravelPlanningAgent, TravelRequest
+from src.agent.travel_agent import TravelChatbot, TravelPlanningAgent, TravelRequest
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -19,6 +19,7 @@ app = FastAPI(title="Travel Planning Agent", version="1.0.0")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 agent = TravelPlanningAgent()
+chatbot = TravelChatbot()
 
 
 class PlanPayload(BaseModel):
@@ -31,17 +32,45 @@ class PlanPayload(BaseModel):
 
 
 def _build_response(payload: PlanPayload) -> Dict[str, Any]:
-    result = agent.plan_trip(
-        TravelRequest(
-            destination=payload.destination.strip(),
-            date=payload.date.strip(),
-            preference=payload.preference.strip(),
-            days=payload.days,
-            budget=payload.budget,
-            travel_style=payload.travel_style.strip(),
-        )
+    request = TravelRequest(
+        destination=payload.destination.strip(),
+        date=payload.date.strip(),
+        preference=payload.preference.strip(),
+        days=payload.days,
+        budget=payload.budget,
+        travel_style=payload.travel_style.strip(),
     )
-    return result
+    return agent.plan_trip(request)
+
+
+def _build_compare_response(payload: PlanPayload) -> Dict[str, Any]:
+    request = TravelRequest(
+        destination=payload.destination.strip(),
+        date=payload.date.strip(),
+        preference=payload.preference.strip(),
+        days=payload.days,
+        budget=payload.budget,
+        travel_style=payload.travel_style.strip(),
+    )
+    chatbot_result = chatbot.respond(request)
+    agent_result = agent.plan_trip(request)
+
+    comparison = [
+        {"criteria": "Cách hoạt động", "chatbot": "Trả lời trực tiếp từ prompt", "agent": "Gọi tool theo workflow"},
+        {"criteria": "Có dùng tool không", "chatbot": "Không", "agent": "Có"},
+        {"criteria": "Weather", "chatbot": "Tự suy luận hoặc nói chung chung", "agent": "Gọi get_weather()"},
+        {"criteria": "Activities", "chatbot": "Gợi ý trực tiếp", "agent": "Gọi recommend_activities()"},
+        {"criteria": "Cost estimation", "chatbot": "Ước lượng chung", "agent": "Gọi estimate_trip_cost()"},
+        {"criteria": "Budget check", "chatbot": "Có thể trả lời chung", "agent": "Gọi check_budget()"},
+        {"criteria": "Trace", "chatbot": "Không có Thought/Action/Observation", "agent": "Có Thought/Action/Observation"},
+        {"criteria": "Final Answer", "chatbot": chatbot_result["final_answer"], "agent": agent_result["final_answer"]},
+    ]
+
+    return {
+        "chatbot": chatbot_result,
+        "agent": agent_result,
+        "comparison": comparison,
+    }
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -56,7 +85,7 @@ async def home(request: Request) -> HTMLResponse:
                 "preference": "bi\u1ec3n v\u00e0 \u0103n u\u1ed1ng",
                 "days": 3,
                 "budget": 4000000,
-                "travel_style": "standard",
+                "travel_style": "budget",
             }
         },
     )
@@ -66,5 +95,13 @@ async def home(request: Request) -> HTMLResponse:
 async def create_plan(payload: PlanPayload) -> Dict[str, Any]:
     try:
         return _build_response(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/compare")
+async def compare_chatbot_vs_agent(payload: PlanPayload) -> Dict[str, Any]:
+    try:
+        return _build_compare_response(payload)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

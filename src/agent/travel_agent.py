@@ -47,10 +47,9 @@ class TravelPlanningAgent:
             arguments={"destination": request.destination, "date": request.date},
         )
 
-        activity_thought = self._build_activity_thought(weather, request.preference, request.travel_style, request.budget)
         activities = self._call_tool(
             steps,
-            thought=activity_thought,
+            thought=self._build_activity_thought(weather, request.preference, request.travel_style, request.budget),
             tool_name="recommend_activities",
             arguments={
                 "destination": request.destination,
@@ -83,6 +82,7 @@ class TravelPlanningAgent:
         )
 
         final_answer = self._build_final_answer(request, weather, activities, trip_cost, budget_result)
+        travel_advice = self._build_advice(request, budget_result)
         logger.log_event(
             "AGENT_END",
             {
@@ -94,10 +94,20 @@ class TravelPlanningAgent:
         )
 
         return {
+            "trace": [
+                {
+                    "thought": step.thought,
+                    "action": step.action.split("(", 1)[0],
+                    "observation": step.observation,
+                }
+                for step in steps
+            ],
             "thoughts": [step.thought for step in steps],
             "actions": [step.action for step in steps],
             "observations": [step.observation for step in steps],
             "final_answer": final_answer,
+            "uses_tools": True,
+            "method": "Tool-driven ReAct workflow",
             "total_cost": trip_cost["total_cost"],
             "within_budget": budget_result["within_budget"],
             "difference": budget_result["difference"],
@@ -106,7 +116,7 @@ class TravelPlanningAgent:
             "weather": weather,
             "recommended_activities": activities,
             "cost_breakdown": trip_cost["breakdown"],
-            "travel_advice": self._build_advice(request, trip_cost, budget_result),
+            "travel_advice": travel_advice,
         }
 
     def _call_tool(self, steps: List[TraceStep], thought: str, tool_name: str, arguments: Dict[str, Any]) -> Any:
@@ -159,17 +169,14 @@ class TravelPlanningAgent:
         return {"sunny": "nắng đẹp", "rainy": "mưa", "cloudy": "nhiều mây"}.get(condition, condition)
 
     @staticmethod
-    def _build_advice(request: TravelRequest, trip_cost: Dict[str, Any], budget_result: Dict[str, Any]) -> str:
+    def _build_advice(request: TravelRequest, budget_result: Dict[str, Any]) -> str:
         if budget_result["within_budget"]:
             if request.travel_style == "budget":
-                return "Kế hoạch hiện khá an toàn với ngân sách. Bạn có thể giữ ưu tiên hoạt động miễn phí và món ăn địa phương."
+                return "Kế hoạch hiện khá an toàn với ngân sách. Bạn có thể ưu tiên các điểm miễn phí và món ăn địa phương."
             if request.travel_style == "premium":
-                return "Ngân sách vẫn đủ tốt. Bạn có thể nâng cấp thêm một trải nghiệm cao cấp hoặc khách sạn đẹp hơn nếu muốn."
-            return "Kế hoạch đang cân bằng tốt giữa chi phí và trải nghiệm."
-        return (
-            "Chi phí đang vượt ngân sách. Nên giảm số hoạt động trả phí, hạ hạng khách sạn "
-            "hoặc chuyển sang travel style budget để tối ưu hơn."
-        )
+                return "Ngân sách còn dư tốt, bạn có thể cân nhắc thêm một trải nghiệm cao cấp nổi bật."
+            return "Kế hoạch hiện cân bằng tốt giữa chi phí và trải nghiệm."
+        return "Chi phí đang vượt ngân sách. Nên giảm hoạt động trả phí, hạ travel style hoặc rút ngắn số ngày."
 
     def _build_final_answer(
         self,
@@ -186,7 +193,7 @@ class TravelPlanningAgent:
             if budget_result["within_budget"]
             else f"Đang vượt ngân sách khoảng {budget_result['difference']:,}đ."
         )
-        advice = self._build_advice(request, trip_cost, budget_result)
+        advice = self._build_advice(request, budget_result)
         return (
             f"Điểm đến: {request.destination}. "
             f"Thời tiết: {self._translate_condition(weather['condition'])}, khoảng {weather['temperature']}°C. {weather['description']} "
@@ -196,3 +203,23 @@ class TravelPlanningAgent:
             f"Tổng chi phí: {trip_cost['total_cost']:,}đ. {budget_line} "
             f"Lời khuyên: {advice}"
         )
+
+
+class TravelChatbot:
+    def respond(self, request: TravelRequest) -> Dict[str, Any]:
+        style_note = {
+            "budget": "Mình sẽ ưu tiên hoạt động tiết kiệm và các món ăn địa phương phổ biến.",
+            "standard": "Mình sẽ gợi ý lịch trình cân bằng giữa trải nghiệm và chi phí.",
+            "premium": "Mình sẽ thiên về trải nghiệm nổi bật và dịch vụ thoải mái hơn.",
+        }.get(request.travel_style, "Mình sẽ gợi ý lịch trình chung.")
+        final_answer = (
+            f"Nếu bạn đi {request.destination} trong {request.days} ngày với sở thích '{request.preference}', "
+            f"bạn có thể kết hợp tham quan, ăn uống và nghỉ ngơi linh hoạt theo thời tiết thực tế. "
+            f"Với ngân sách khoảng {request.budget:,}đ và travel style {request.travel_style}, {style_note} "
+            f"Bạn nên ưu tiên các điểm nổi bật của nơi đó, theo dõi thời tiết gần ngày đi và tự cân đối chi tiêu khi di chuyển."
+        )
+        return {
+            "final_answer": final_answer,
+            "uses_tools": False,
+            "method": "Direct LLM response",
+        }

@@ -3,18 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Travel Planning Agent</title>
+    <title>Travel Chatbot vs Travel Agent Demo</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
     <main class="page">
         <section class="hero">
             <div class="hero-copy">
-                <p class="eyebrow">Travel Planning Agent</p>
-                <h1>Lập kế hoạch du lịch theo thời tiết, sở thích và ngân sách</h1>
+                <p class="eyebrow">Travel Demo</p>
+                <h1>Travel Chatbot vs Travel Agent Demo</h1>
                 <p class="subtitle">
-                    Form này sẽ gọi agent theo đúng thứ tự tool: weather, activity recommendation,
-                    cost estimation và budget check.
+                    So sánh trực tiếp một chatbot trả lời chung chung với một ReAct Agent có dùng tool cho travel planning.
                 </p>
             </div>
             <div class="hero-panel">
@@ -29,7 +28,7 @@
                     </label>
                     <label>
                         <span>Preference</span>
-                        <input name="preference" value="{{ defaults.preference }}" placeholder="biển, văn hóa, ăn uống...">
+                        <input name="preference" value="{{ defaults.preference }}" placeholder="thiên nhiên, văn hóa, ăn uống...">
                     </label>
                     <label>
                         <span>Days</span>
@@ -42,43 +41,71 @@
                     <label>
                         <span>Travel Style</span>
                         <select name="travel_style">
-                            <option value="budget">budget</option>
-                            <option value="standard" selected>standard</option>
-                            <option value="premium">premium</option>
+                            <option value="budget" {% if defaults.travel_style == "budget" %}selected{% endif %}>budget</option>
+                            <option value="standard" {% if defaults.travel_style == "standard" %}selected{% endif %}>standard</option>
+                            <option value="premium" {% if defaults.travel_style == "premium" %}selected{% endif %}>premium</option>
                         </select>
                     </label>
-                    <button type="submit">Generate Travel Plan</button>
+                    <button type="submit">Compare Chatbot vs Agent</button>
                 </form>
             </div>
         </section>
 
         <section class="results">
             <div class="results-header">
-                <h2>Agent Execution</h2>
-                <p id="status">Nhập thông tin và bấm Generate Travel Plan.</p>
+                <h2>Comparison Result</h2>
+                <p id="status">Nhập thông tin chuyến đi rồi bấm Compare Chatbot vs Agent.</p>
             </div>
 
-            <div id="summary" class="summary hidden"></div>
-            <div id="trace" class="trace"></div>
-            <article id="final-answer" class="final-answer hidden"></article>
+            <section id="comparison-section" class="hidden">
+                <h3>Comparison Table</h3>
+                <div class="table-wrap">
+                    <table id="comparison-table" class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Tiêu chí</th>
+                                <th>Chatbot</th>
+                                <th>Agent</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <div class="outputs">
+                <article id="chatbot-output" class="final-answer hidden"></article>
+                <article id="agent-output" class="final-answer hidden"></article>
+            </div>
+
+            <section id="trace-section" class="hidden">
+                <h3>Agent ReAct Trace</h3>
+                <div id="trace" class="trace"></div>
+            </section>
         </section>
     </main>
 
     <script>
         const form = document.getElementById("planner-form");
         const statusEl = document.getElementById("status");
+        const comparisonSection = document.getElementById("comparison-section");
+        const comparisonTableBody = document.querySelector("#comparison-table tbody");
+        const chatbotOutputEl = document.getElementById("chatbot-output");
+        const agentOutputEl = document.getElementById("agent-output");
+        const traceSection = document.getElementById("trace-section");
         const traceEl = document.getElementById("trace");
-        const summaryEl = document.getElementById("summary");
-        const finalAnswerEl = document.getElementById("final-answer");
 
         const currency = (value) => new Intl.NumberFormat("vi-VN").format(value) + "đ";
 
         form.addEventListener("submit", async (event) => {
             event.preventDefault();
-            statusEl.textContent = "Agent đang phân tích...";
+            statusEl.textContent = "Đang so sánh Chatbot và Agent...";
+            comparisonSection.classList.add("hidden");
+            chatbotOutputEl.classList.add("hidden");
+            agentOutputEl.classList.add("hidden");
+            traceSection.classList.add("hidden");
+            comparisonTableBody.innerHTML = "";
             traceEl.innerHTML = "";
-            summaryEl.classList.add("hidden");
-            finalAnswerEl.classList.add("hidden");
 
             const formData = new FormData(form);
             const payload = {
@@ -91,7 +118,7 @@
             };
 
             try {
-                const response = await fetch("/plan", {
+                const response = await fetch("/compare", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload),
@@ -102,52 +129,52 @@
                     throw new Error(data.detail || "Request failed");
                 }
 
-                statusEl.textContent = "Đã tạo xong kế hoạch.";
-                summaryEl.classList.remove("hidden");
-                finalAnswerEl.classList.remove("hidden");
+                statusEl.textContent = "Đã so sánh xong Chatbot và Agent.";
+                comparisonSection.classList.remove("hidden");
+                chatbotOutputEl.classList.remove("hidden");
+                agentOutputEl.classList.remove("hidden");
+                traceSection.classList.remove("hidden");
 
-                summaryEl.innerHTML = `
-                    <div class="summary-card">
-                        <h3>Destination</h3>
-                        <p>${data.destination}</p>
-                    </div>
-                    <div class="summary-card">
-                        <h3>Total Cost</h3>
-                        <p>${currency(data.total_cost)}</p>
-                    </div>
-                    <div class="summary-card">
-                        <h3>Budget Check</h3>
-                        <p>${data.within_budget ? "Trong ngân sách" : "Vượt ngân sách"}</p>
-                    </div>
-                    <div class="summary-card">
-                        <h3>Travel Style</h3>
-                        <p>${data.travel_style}</p>
-                    </div>
-                `;
-
-                traceEl.innerHTML = data.thoughts.map((thought, index) => `
-                    <article class="trace-card">
-                        <p class="trace-label">Thought</p>
-                        <p>${thought}</p>
-                        <p class="trace-label">Action</p>
-                        <code>${data.actions[index]}</code>
-                        <p class="trace-label">Observation</p>
-                        <pre>${JSON.stringify(data.observations[index], null, 2)}</pre>
-                    </article>
+                comparisonTableBody.innerHTML = data.comparison.map((row) => `
+                    <tr>
+                        <td>${row.criteria}</td>
+                        <td>${row.chatbot}</td>
+                        <td>${row.agent}</td>
+                    </tr>
                 `).join("");
 
-                finalAnswerEl.innerHTML = `
-                    <h3>Final Answer</h3>
-                    <p>${data.final_answer}</p>
-                    <h3>Cost Breakdown</h3>
-                    <pre>${JSON.stringify(data.cost_breakdown, null, 2)}</pre>
-                    <h3>Travel Advice</h3>
-                    <p>${data.travel_advice}</p>
+                chatbotOutputEl.innerHTML = `
+                    <h3>Chatbot Output</h3>
+                    <p><strong>Method:</strong> ${data.chatbot.method}</p>
+                    <p>${data.chatbot.final_answer}</p>
                 `;
+
+                agentOutputEl.innerHTML = `
+                    <h3>Agent Output</h3>
+                    <p><strong>Total Cost:</strong> ${currency(data.agent.total_cost)}</p>
+                    <p><strong>Budget Check:</strong> ${data.agent.within_budget ? "Trong ngân sách" : "Vượt ngân sách"}</p>
+                    <p>${data.agent.final_answer}</p>
+                    <h3>Cost Breakdown</h3>
+                    <pre>${JSON.stringify(data.agent.cost_breakdown, null, 2)}</pre>
+                    <h3>Travel Advice</h3>
+                    <p>${data.agent.travel_advice}</p>
+                `;
+
+                traceEl.innerHTML = data.agent.trace.map((step, index) => `
+                    <article class="trace-card">
+                        <h4>Step ${index + 1}</h4>
+                        <p class="trace-label">Thought</p>
+                        <p>${step.thought}</p>
+                        <p class="trace-label">Action</p>
+                        <code>${step.action}</code>
+                        <p class="trace-label">Observation</p>
+                        <pre>${JSON.stringify(step.observation, null, 2)}</pre>
+                    </article>
+                `).join("");
             } catch (error) {
-                statusEl.textContent = "Không thể tạo kế hoạch.";
-                finalAnswerEl.classList.remove("hidden");
-                finalAnswerEl.innerHTML = `<h3>Error</h3><p>${error.message}</p>`;
+                statusEl.textContent = "Không thể tạo bảng so sánh.";
+                chatbotOutputEl.classList.remove("hidden");
+                chatbotOutputEl.innerHTML = `<h3>Error</h3><p>${error.message}</p>`;
             }
         });
     </script>
