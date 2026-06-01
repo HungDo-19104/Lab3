@@ -4,3 +4,7 @@ __pycache__/
 *.log
 .DS_Store
 models/
+.venv/
+.pytest_cache/
+server.out
+server.err

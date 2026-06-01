@@ -1,56 +1,155 @@
-# Lab 3: Chatbot vs ReAct Agent (Industry Edition)
+# Travel Planning Agent Web App
 
-Welcome to Phase 3 of the Agentic AI course! This lab focuses on moving from a simple LLM Chatbot to a sophisticated **ReAct Agent** with industry-standard monitoring.
+Project này là một web app FastAPI cho Travel Planning Agent chạy trên localhost.
 
-## 🚀 Getting Started
+## Cách chạy
 
-### 1. Setup Environment
-Copy the `.env.example` to `.env` and fill in your API keys:
-```bash
-cp .env.example .env
-```
-
-### 2. Install Dependencies
 ```bash
 pip install -r requirements.txt
+python main.py
 ```
 
-### 3. Directory Structure
-- `src/tools/`: Extension point for your custom tools.
+Sau khi chạy:
 
-## 🏠 Running with Local Models (CPU)
-
-If you don't want to use OpenAI or Gemini, you can run open-source models (like Phi-3) directly on your CPU using `llama-cpp-python`.
-
-### 1. Download the Model
-Download the **Phi-3-mini-4k-instruct-q4.gguf** (approx 2.2GB) from Hugging Face:
-- [Phi-3-mini-4k-instruct-GGUF](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf)
-- Direct Download: [phi-3-mini-4k-instruct-q4.gguf](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf)
-
-### 2. Place Model in Project
-Create a `models/` folder in the root and move the downloaded `.gguf` file there.
-
-### 3. Update `.env`
-Change your `DEFAULT_PROVIDER` and set the path:
-```env
-DEFAULT_PROVIDER=local
-LOCAL_MODEL_PATH=./models/Phi-3-mini-4k-instruct-q4.gguf
+```text
+Server started successfully
+Running at:
+http://localhost:8000
 ```
 
-## 🎯 Lab Objectives
+## Input hỗ trợ
 
-1.  **Baseline Chatbot**: Observe the limitations of a standard LLM when faced with multi-step reasoning.
-2.  **ReAct Loop**: Implement the `Thought-Action-Observation` cycle in `src/agent/agent.py`.
-3.  **Provider Switching**: Swap between OpenAI and Gemini seamlessly using the `LLMProvider` interface.
-4.  **Failure Analysis**: Use the structured logs in `logs/` to identify why the agent fails (hallucinations, parsing errors).
-5.  **Grading & Bonus**: Follow the [SCORING.md](file:///Users/tindt/personal/ai-thuc-chien/day03-lab-agent/SCORING.md) to maximize your points and explore bonus metrics.
+- `destination`
+- `date`
+- `preference`
+- `days`
+- `budget`
+- `travel_style`: `budget`, `standard`, `premium`
 
-## 🛠️ How to Use This Baseline
-The code is designed as a **Production Prototype**. It includes:
-- **Telemetry**: Every action is logged in JSON format for later analysis.
-- **Robust Provider Pattern**: Easily extendable to any LLM API.
-- **Clean Skeletons**: Focus on the logic that matters—the agent's reasoning process.
+## Agent flow
 
----
+Agent luôn gọi đúng 4 tools theo thứ tự:
 
-*Happy Coding! Let's build agents that actually work.*
+1. `get_weather(destination, date)`
+2. `recommend_activities(destination, weather, preference, travel_style)`
+3. `estimate_trip_cost(destination, days, activities, travel_style)`
+4. `check_budget(total_cost, budget)`
+
+## Travel Knowledge Base
+
+Knowledge base hiện có các điểm đến:
+
+### Miền Bắc
+
+- Hà Nội
+- Sapa
+- Hà Giang
+- Ninh Bình
+- Quảng Ninh (Hạ Long)
+- Mộc Châu
+
+### Miền Trung
+
+- Huế
+- Đà Nẵng
+- Hội An
+- Quy Nhơn
+- Nha Trang
+- Phú Yên
+
+### Miền Nam
+
+- TP Hồ Chí Minh
+- Vũng Tàu
+- Phú Quốc
+- Cần Thơ
+- Đà Lạt
+
+Mỗi destination có đủ:
+
+- `nature`
+- `food`
+- `culture`
+- `indoor_rainy`
+
+Nếu destination chưa tồn tại, hệ thống dùng fallback riêng và không lấy dữ liệu từ thành phố khác.
+
+## Cost Engine V2
+
+Tổng chi phí được tính theo:
+
+```text
+total_cost = hotel_cost + food_cost + transport_cost + activity_cost
+```
+
+### Hotel cost
+
+Theo destination và `travel_style`.
+
+### Food cost
+
+- `budget`: `150000/ngày`
+- `standard`: `300000/ngày`
+- `premium`: `700000/ngày`
+
+### Transport cost
+
+Theo từng destination trong knowledge base.
+
+### Activity cost
+
+Mỗi activity có `cost` riêng ngay trong database.
+
+## API
+
+### `GET /`
+
+Trang giao diện web.
+
+### `POST /plan`
+
+Request body:
+
+```json
+{
+  "destination": "Phú Quốc",
+  "date": "2026-08-20",
+  "preference": "biển và ăn uống",
+  "days": 4,
+  "budget": 12000000,
+  "travel_style": "standard"
+}
+```
+
+Response body:
+
+```json
+{
+  "thoughts": ["..."],
+  "actions": ["..."],
+  "observations": [{}, [], {}, {}],
+  "final_answer": "...",
+  "total_cost": 0,
+  "within_budget": true,
+  "cost_breakdown": {
+    "hotel": 0,
+    "food": 0,
+    "transport": 0,
+    "activities": 0
+  },
+  "travel_advice": "..."
+}
+```
+
+## Test coverage
+
+Đã có test cho:
+
+- Hà Nội
+- Sapa
+- Đà Lạt
+- Đà Nẵng
+- Phú Quốc
+- Quảng Ninh (Hạ Long)
+
+Ngoài ra còn có test fallback destination riêng.

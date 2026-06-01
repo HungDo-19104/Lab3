@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel Planning Agent</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <main class="page">
+        <section class="hero">
+            <div class="hero-copy">
+                <p class="eyebrow">Travel Planning Agent</p>
+                <h1>Lập kế hoạch du lịch theo thời tiết, sở thích và ngân sách</h1>
+                <p class="subtitle">
+                    Form này sẽ gọi agent theo đúng thứ tự tool: weather, activity recommendation,
+                    cost estimation và budget check.
+                </p>
+            </div>
+            <div class="hero-panel">
+                <form id="planner-form" class="planner-form">
+                    <label>
+                        <span>Destination</span>
+                        <input name="destination" value="{{ defaults.destination }}" required>
+                    </label>
+                    <label>
+                        <span>Date</span>
+                        <input type="date" name="date" value="{{ defaults.date }}" required>
+                    </label>
+                    <label>
+                        <span>Preference</span>
+                        <input name="preference" value="{{ defaults.preference }}" placeholder="biển, văn hóa, ăn uống...">
+                    </label>
+                    <label>
+                        <span>Days</span>
+                        <input type="number" name="days" value="{{ defaults.days }}" min="1" required>
+                    </label>
+                    <label>
+                        <span>Budget</span>
+                        <input type="number" name="budget" value="{{ defaults.budget }}" min="0" required>
+                    </label>
+                    <label>
+                        <span>Travel Style</span>
+                        <select name="travel_style">
+                            <option value="budget">budget</option>
+                            <option value="standard" selected>standard</option>
+                            <option value="premium">premium</option>
+                        </select>
+                    </label>
+                    <button type="submit">Generate Travel Plan</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="results">
+            <div class="results-header">
+                <h2>Agent Execution</h2>
+                <p id="status">Nhập thông tin và bấm Generate Travel Plan.</p>
+            </div>
+
+            <div id="summary" class="summary hidden"></div>
+            <div id="trace" class="trace"></div>
+            <article id="final-answer" class="final-answer hidden"></article>
+        </section>
+    </main>
+
+    <script>
+        const form = document.getElementById("planner-form");
+        const statusEl = document.getElementById("status");
+        const traceEl = document.getElementById("trace");
+        const summaryEl = document.getElementById("summary");
+        const finalAnswerEl = document.getElementById("final-answer");
+
+        const currency = (value) => new Intl.NumberFormat("vi-VN").format(value) + "đ";
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            statusEl.textContent = "Agent đang phân tích...";
+            traceEl.innerHTML = "";
+            summaryEl.classList.add("hidden");
+            finalAnswerEl.classList.add("hidden");
+
+            const formData = new FormData(form);
+            const payload = {
+                destination: formData.get("destination"),
+                date: formData.get("date"),
+                preference: formData.get("preference"),
+                days: Number(formData.get("days")),
+                budget: Number(formData.get("budget")),
+                travel_style: formData.get("travel_style"),
+            };
+
+            try {
+                const response = await fetch("/plan", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || "Request failed");
+                }
+
+                statusEl.textContent = "Đã tạo xong kế hoạch.";
+                summaryEl.classList.remove("hidden");
+                finalAnswerEl.classList.remove("hidden");
+
+                summaryEl.innerHTML = `
+                    <div class="summary-card">
+                        <h3>Destination</h3>
+                        <p>${data.destination}</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Total Cost</h3>
+                        <p>${currency(data.total_cost)}</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Budget Check</h3>
+                        <p>${data.within_budget ? "Trong ngân sách" : "Vượt ngân sách"}</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Travel Style</h3>
+                        <p>${data.travel_style}</p>
+                    </div>
+                `;
+
+                traceEl.innerHTML = data.thoughts.map((thought, index) => `
+                    <article class="trace-card">
+                        <p class="trace-label">Thought</p>
+                        <p>${thought}</p>
+                        <p class="trace-label">Action</p>
+                        <code>${data.actions[index]}</code>
+                        <p class="trace-label">Observation</p>
+                        <pre>${JSON.stringify(data.observations[index], null, 2)}</pre>
+                    </article>
+                `).join("");
+
+                finalAnswerEl.innerHTML = `
+                    <h3>Final Answer</h3>
+                    <p>${data.final_answer}</p>
+                    <h3>Cost Breakdown</h3>
+                    <pre>${JSON.stringify(data.cost_breakdown, null, 2)}</pre>
+                    <h3>Travel Advice</h3>
+                    <p>${data.travel_advice}</p>
+                `;
+            } catch (error) {
+                statusEl.textContent = "Không thể tạo kế hoạch.";
+                finalAnswerEl.classList.remove("hidden");
+                finalAnswerEl.innerHTML = `<h3>Error</h3><p>${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>

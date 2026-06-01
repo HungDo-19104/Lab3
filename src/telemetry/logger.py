@@ -1,29 +1,30 @@
 import logging
 import json
-import os
+import sys
 from datetime import datetime
 from typing import Any, Dict
 
 class IndustryLogger:
     """
     Structured logger that simulates industry practices.
-    Logs to both console and a file in JSON format.
+    Logs to console in JSON format for the active web app flow.
     """
-    def __init__(self, name: str = "AI-Lab-Agent", log_dir: str = "logs"):
+    def __init__(self, name: str = "AI-Lab-Agent"):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.INFO)
-        
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
+        self.logger.propagate = False
 
-        # File Handler (JSON)
-        log_file = os.path.join(log_dir, f"{datetime.now().strftime('%Y-%m-%d')}.log")
-        file_handler = logging.FileHandler(log_file)
-        
-        # Console Handler
-        console_handler = logging.StreamHandler()
-        
-        self.logger.addHandler(file_handler)
+        if self.logger.handlers:
+            self.logger.handlers.clear()
+
+        if hasattr(sys.stdout, "reconfigure"):
+            try:
+                sys.stdout.reconfigure(encoding="utf-8")
+                sys.stderr.reconfigure(encoding="utf-8")
+            except ValueError:
+                pass
+        console_handler = logging.StreamHandler(sys.stdout)
+
         self.logger.addHandler(console_handler)
 
     def log_event(self, event_type: str, data: Dict[str, Any]):
@@ -33,7 +34,7 @@ class IndustryLogger:
             "event": event_type,
             "data": data
         }
-        self.logger.info(json.dumps(payload))
+        self.logger.info(json.dumps(payload, ensure_ascii=False))
 
     def info(self, msg: str):
         self.logger.info(msg)

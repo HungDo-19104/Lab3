@@ -1,0 +1,248 @@
+:root {
+    --bg: #f4efe5;
+    --surface: rgba(255, 252, 247, 0.82);
+    --surface-strong: #fffaf2;
+    --ink: #1d2a2f;
+    --muted: #586568;
+    --accent: #d8653f;
+    --accent-dark: #a9492b;
+    --border: rgba(29, 42, 47, 0.12);
+    --shadow: 0 24px 60px rgba(78, 59, 35, 0.12);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+    color: var(--ink);
+    background:
+        radial-gradient(circle at top left, rgba(216, 101, 63, 0.18), transparent 26%),
+        radial-gradient(circle at bottom right, rgba(36, 138, 125, 0.18), transparent 22%),
+        linear-gradient(135deg, #f5efe4 0%, #efe7da 100%);
+}
+
+.page {
+    width: min(1180px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 32px 0 56px;
+}
+
+.hero {
+    display: grid;
+    grid-template-columns: 1.2fr 0.9fr;
+    gap: 24px;
+    align-items: stretch;
+}
+
+.hero-copy,
+.hero-panel,
+.results {
+    background: var(--surface);
+    backdrop-filter: blur(18px);
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    box-shadow: var(--shadow);
+}
+
+.hero-copy {
+    padding: 36px;
+}
+
+.eyebrow {
+    margin: 0 0 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 0.78rem;
+    color: var(--accent-dark);
+}
+
+h1 {
+    margin: 0;
+    font-size: clamp(2.4rem, 5vw, 4.6rem);
+    line-height: 0.95;
+}
+
+.subtitle {
+    margin: 18px 0 0;
+    max-width: 46ch;
+    color: var(--muted);
+    font-size: 1.02rem;
+    line-height: 1.6;
+}
+
+.hero-panel {
+    padding: 28px;
+}
+
+.planner-form {
+    display: grid;
+    gap: 14px;
+}
+
+.planner-form label {
+    display: grid;
+    gap: 8px;
+}
+
+.planner-form span {
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.planner-form input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(29, 42, 47, 0.14);
+    background: var(--surface-strong);
+    font-size: 1rem;
+}
+
+.planner-form select {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(29, 42, 47, 0.14);
+    background: var(--surface-strong);
+    font-size: 1rem;
+}
+
+.planner-form button {
+    border: 0;
+    border-radius: 18px;
+    padding: 16px 18px;
+    background: linear-gradient(135deg, var(--accent) 0%, #ef8c58 100%);
+    color: white;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 140ms ease, box-shadow 140ms ease;
+    box-shadow: 0 18px 32px rgba(216, 101, 63, 0.26);
+}
+
+.planner-form button:hover {
+    transform: translateY(-1px);
+}
+
+.results {
+    margin-top: 26px;
+    padding: 28px;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.results-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+#status {
+    margin: 0;
+    color: var(--muted);
+}
+
+.summary {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.summary-card,
+.trace-card,
+.final-answer {
+    background: var(--surface-strong);
+    border: 1px solid rgba(29, 42, 47, 0.09);
+    border-radius: 22px;
+}
+
+.summary-card {
+    padding: 18px 20px;
+}
+
+.summary-card h3 {
+    margin: 0 0 6px;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.summary-card p {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+}
+
+.trace {
+    margin-top: 22px;
+    display: grid;
+    gap: 16px;
+}
+
+.trace-card {
+    padding: 20px;
+}
+
+.trace-label {
+    margin: 0 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.72rem;
+    color: var(--accent-dark);
+}
+
+.trace-card p,
+.trace-card code,
+.trace-card pre {
+    margin: 0 0 14px;
+}
+
+.trace-card code,
+.trace-card pre {
+    display: block;
+    padding: 14px;
+    border-radius: 16px;
+    background: #f0ece3;
+    font-family: Consolas, "Courier New", monospace;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.final-answer {
+    margin-top: 22px;
+    padding: 22px;
+}
+
+.final-answer h3 {
+    margin-top: 0;
+}
+
+.hidden {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .hero {
+        grid-template-columns: 1fr;
+    }
+
+    .page {
+        width: min(100% - 20px, 1180px);
+        padding-top: 18px;
+    }
+
+    .hero-copy,
+    .hero-panel,
+    .results {
+        border-radius: 24px;
+    }
+}
